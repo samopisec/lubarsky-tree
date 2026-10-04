@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Древо Любарского</title>
+<!-- «Древо» (#73, этап 2 — живой образец; ATLAS_TREE_SPEC.md). Пока не выкладывается на сайт. -->
+<style>
+  :root { --bg:#0b1222; --panel:rgba(14,22,40,.9); --line:#2a3558; --text:#dbe3ff; --muted:#8f9bc0; --accent:#f2c14e; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font:14px/1.4 Arial, sans-serif; overflow:hidden; }
+  #scene { position:fixed; inset:0; }
+  #hdr { position:fixed; left:16px; top:10px; pointer-events:none; z-index:3; }
+  #hdr .go { pointer-events:auto; display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; margin-left:8px; vertical-align:2px;
+    border:1px solid var(--line); border-radius:7px; background:#16213d; font-size:15px; text-decoration:none; letter-spacing:0; }
+  #hdr .go:hover { background:#2a3a66; border-color:#4a5d96; }
+  .ans { position:fixed; transform:translate(-50%,-130%); min-width:18px; height:18px; padding:0 4px; box-sizing:border-box; border-radius:9px; background:#8fd8ff; color:#0b1222;
+    font:700 11px/18px Arial; text-align:center; cursor:pointer; box-shadow:0 0 6px rgba(0,0,0,.85); z-index:2; }
+  .ans::after { content:''; position:absolute; left:50%; bottom:-5px; margin-left:-4px; border:4px solid transparent; border-top-color:#8fd8ff; border-bottom:0; }
+  .ans:hover { background:#fff; }
+  #pinring { position:fixed; width:28px; height:28px; margin:-17px 0 0 -17px; border:3px solid #ff4a4a; border-radius:50%; pointer-events:none;
+    display:none; z-index:4; box-shadow:0 0 10px #ff4a4a; animation:pinb 1s ease-in-out infinite; }
+  @keyframes pinb { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.4); opacity:.4; } }
+  #pin { position:fixed; display:none; z-index:6; max-width:300px; background:rgba(8,12,24,.86); border:1px solid #ff4a4a; border-radius:8px;
+    padding:6px 22px 7px 9px; font-size:12px; line-height:1.35; }
+  #pin .x { position:absolute; right:6px; top:1px; cursor:pointer; color:var(--muted); font-size:17px; }
+  #pin .nt { color:#ffb36b; font-size:11.5px; margin-top:3px; }
+  #pin .bt { display:flex; gap:5px; margin-top:6px; flex-wrap:wrap; }
+  #pin button { padding:2px 7px; font-size:12px; }
+  #toast { position:fixed; left:50%; top:58px; transform:translateX(-50%); max-width:640px; background:rgba(8,12,24,.94); border:1px solid var(--line);
+    border-radius:8px; padding:5px 12px; font-size:12.5px; display:none; z-index:12; word-break:break-all; }
+  #hdr h1 { margin:0; font-size:18px; letter-spacing:.08em; font-weight:700; }
+  #hdr .sub { color:var(--muted); font-size:12px; }
+  #srch { position:fixed; left:122px; top:52px; display:flex; gap:6px; align-items:center; }
+  #srch input { width:230px; background:#0e1730; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font:inherit; }
+  #stats { position:fixed; left:122px; top:84px; max-width:520px; z-index:3; }   /* совет и строки состояния — столбиком, без наложений */
+  #sstat { font-size:12.5px; color:var(--accent); }
+  #astat { font-size:12.5px; color:#8fd8ff; margin-top:3px; display:none; }
+  #astat button { margin-left:6px; }
+  #sstat button { margin-left:6px; }
+  #panel, #bar, #ruler, #srch, #shint, #help { z-index:3; }   /* панели — над подписями */
+  #ruler { position:fixed; left:12px; top:70px; bottom:190px; width:96px; background:var(--panel); border:1px solid var(--line); border-radius:10px; }
+  #ruler canvas { position:absolute; left:0; top:0; width:100%; height:100%; cursor:ns-resize; }
+  #ruler .play { position:absolute; left:8px; bottom:-34px; }
+  #panel { position:fixed; right:12px; top:12px; bottom:70px; width:330px; background:var(--panel); border:1px solid var(--line); border-radius:10px; display:flex; flex-direction:column; }
+  #panel.min { bottom:auto; }
+  #panel.min .body { display:none; }
+  #panel .top { display:flex; gap:6px; align-items:center; padding:8px 10px; border-bottom:1px solid var(--line); }
+  #panel .top b { flex:1; letter-spacing:.06em; }
+  #panel .body { overflow:auto; padding:4px 0 8px; }
+  #panel input[type=search] { width:calc(100% - 20px); margin:6px 10px; background:#0e1730; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:5px 8px; }
+  .row { display:grid; grid-template-columns:14px 12px 1fr 92px 22px; gap:6px; align-items:center; padding:3px 10px; cursor:pointer; }
+  .row:hover { background:rgba(255,255,255,.05); }
+  .row.sel { background:rgba(242,193,78,.14); }
+  .row.off { opacity:.4; }
+  .row .tw { color:var(--muted); font-size:11px; user-select:none; }
+  .row .dot { width:10px; height:10px; border-radius:50%; }
+  .row .nm { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row.g .nm { text-transform:uppercase; letter-spacing:.07em; font-size:12px; }
+  .row.c { padding-left:28px; grid-template-columns:0 12px 1fr 92px 22px; }
+  .row.c .nm { font-weight:700; font-size:12.5px; }
+  .row .eye { color:var(--muted); text-align:center; user-select:none; }
+  .row canvas { width:92px; height:20px; }
+  #bar { position:fixed; left:50%; transform:translateX(-50%); bottom:12px; display:flex; gap:5px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:6px; }
+  button, .btn { background:#16213d; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font:inherit; cursor:pointer; white-space:nowrap; }
+  button.on { background:#2a3a66; border-color:#4a5d96; }
+  .sep { width:1px; background:var(--line); margin:0 3px; }
+  #tip { position:fixed; pointer-events:none; background:rgba(8,12,24,.46); backdrop-filter:blur(1.5px); border:1px solid rgba(42,53,88,.55); border-radius:5px;
+    padding:2px 5px; max-width:310px; font-size:11px; line-height:1.28; display:none; z-index:9; text-shadow:0 0 2px #000, 0 0 5px #000; }
+  #tip .t-g { font-size:9.5px; }
+  .t-g { text-transform:uppercase; letter-spacing:.08em; font-size:11px; }
+  .t-c { font-weight:700; }
+  .t-d { color:var(--muted); }
+  #menu { position:fixed; display:none; background:#0e1730; border:1px solid var(--line); border-radius:8px; padding:4px; z-index:6; min-width:220px; }
+  #menu div { padding:6px 10px; border-radius:5px; cursor:pointer; }
+  #menu div:hover { background:#1c2a4f; }
+  #aim { position:fixed; width:20px; height:20px; margin:-12px 0 0 -12px; border:2px solid #fff; border-radius:50%; pointer-events:none; display:none; box-shadow:0 0 6px #000; z-index:4; }
+  #aim.rg { width:30px; height:30px; margin:-17px 0 0 -17px; border-color:var(--accent); box-shadow:0 0 8px var(--accent); }
+  .lab.vbg { font-size:12px; font-weight:600; letter-spacing:.12em; background:none; padding:0; text-shadow:0 0 2px #000, 0 0 6px #000, 0 0 10px #000; }
+  body.vidmode #bar { transform:translateX(max(-50%, calc(360px - 50vw))); }   /* ролик: нижняя панель — правее плеера */
+  @media (max-width: 1219px) {                    /* узкое окно: панель — от плеера до края, кнопки в два ряда */
+    body.vidmode #bar { left:360px; right:12px; transform:none; flex-wrap:wrap; justify-content:center; }
+    body.vidmode #panel { bottom:122px; } body.vidmode #set { bottom:112px; left:auto; right:12px; transform:none; }
+  }
+  .lab.con { text-transform:none; letter-spacing:.02em; font-size:13.5px; }
+  .yr.clk { transform:translate(-50%,-50%); color:#dbe3ff; font-size:11px; }
+  .lab { position:fixed; pointer-events:none; font-size:15px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; text-shadow:0 0 3px #000, 0 0 8px #000, 0 0 14px #000; white-space:nowrap; transform:translate(-50%,-50%); background:rgba(8,12,24,.55); border-radius:6px; padding:2px 8px; }
+  .yr { position:fixed; pointer-events:none; font-size:11px; color:var(--muted); transform:translate(-100%,-50%); text-shadow:0 0 3px #000; }
+  #cap { position:fixed; left:50%; top:14px; transform:translateX(-50%); background:var(--panel); border:1px solid var(--accent); border-radius:8px; padding:6px 12px; display:none; max-width:560px; font-size:13px; text-align:center; z-index:5; }
+  #vid { position:fixed; left:12px; bottom:10px; width:320px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px; display:none; z-index:5; }
+  #vid .x { position:absolute; right:8px; top:4px; cursor:pointer; color:var(--muted); font-size:18px; }
+  #vid iframe { width:100%; height:200px; border:0; border-radius:6px; background:#000; margin-top:6px; }
+  #vid .nav { display:flex; gap:5px; align-items:center; margin-top:6px; flex-wrap:wrap; }
+  #vid .nav .pinfo { color:var(--muted); font-size:12px; flex:1; text-align:center; }
+  #vid .vt { font-size:12.5px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #vhd { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:18px; font-size:12.5px; }
+  #vid button { padding:3px 7px; font-size:12.5px; }
+  #shint { font-size:11.5px; color:var(--muted); margin-bottom:3px; }
+  #shint a { color:var(--accent); cursor:pointer; text-decoration:underline; }
+  #ruler .reset { position:absolute; right:6px; bottom:-34px; display:none; }
+  #phint { color:var(--muted); font-size:11px; padding:0 10px 4px; }
+  #set { position:fixed; left:50%; transform:translateX(-50%); bottom:58px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 14px; display:none; z-index:6; min-width:330px; }
+  #set .x { position:absolute; right:8px; top:2px; cursor:pointer; color:var(--muted); font-size:18px; }
+  #set .st { font-size:11px; letter-spacing:.1em; color:var(--muted); margin:-2px 0 4px; }
+  #set label { display:grid; grid-template-columns:150px 1fr 52px; gap:8px; align-items:center; font-size:12.5px; margin:4px 0; }
+  #set output { color:var(--muted); text-align:right; }
+  #help { position:fixed; left:12px; bottom:10px; color:var(--muted); font-size:11px; max-width:268px; opacity:.4; cursor:pointer; transition:opacity .25s; background:rgba(14,22,40,.6); border-radius:8px; padding:5px 8px; }
+  #help:hover { opacity:1; }
+  @media (min-width: 1101px) and (max-width: 1459px) and (min-height: 651px) {   /* нижняя панель близко: подсказка — в строку, целиком — при наведении */
+    #help { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:calc(50vw - 458px); }
+    #help:hover { white-space:normal; max-width:268px; z-index:7; background:rgba(14,22,40,.95); }
+    #ruler { bottom:118px; }
+  }
+  @media (max-width: 1100px), (max-height: 650px) { #help .hd { display:none; } #help { left:4px; padding:4px 6px; } #ruler { bottom:118px; } }
+  #help b { color:var(--text); }
+  #about { position:fixed; inset:0; background:rgba(5,8,16,.72); display:flex; align-items:center; justify-content:center; z-index:20; }
+  #about .card { background:#0e1730; border:1px solid var(--line); border-radius:12px; padding:18px 22px; max-width:640px; max-height:86vh; overflow:auto; font-size:13.5px; line-height:1.5; }
+  #about h2 { margin:0 0 8px; font-size:18px; letter-spacing:.08em; }
+  #about h3 { margin:12px 0 4px; font-size:14px; color:var(--accent); }
+  #about ul { margin:4px 0; padding-left:18px; }
+  #about .close { color:var(--muted); font-size:12px; margin-top:10px; }
+  #load { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:15px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="scene"></div>
+<div id="load">Загружаю дерево…</div>
+<div id="hdr"><h1>ДРЕВО ЛЮБАРСКОГО<a class="go" href="https://lubarsky.momendex.quest/" target="_blank" rel="noopener" title="Поиск Любарского">🔍</a><a class="go" href="https://momendex.quest/atlas.html" target="_blank" rel="noopener" title="Вселенная Любарского">🌌</a></h1><div class="sub" id="sub"></div></div>
+<div id="srch"><input id="q" type="search" placeholder="слово или фраза…"><button id="go">найти</button><button id="qx" title="Сбросить поиск (Esc)" style="display:none">×</button><button id="ask" title="10 лучших ответов «Поиска Любарского» по этому запросу — отметить на дереве">ответы</button></div>
+<div id="stats"><div id="shint">Enter: одно слово — ключевые слова дерева (пишите начало слова без окончания — найдётся больше: Москв → Москва, Москвой); а несколько слов — ответы «Поиска Любарского»</div><div id="sstat"></div><div id="astat"></div></div>
+<div id="ruler"><canvas id="rc"></canvas><button class="play" id="play" title="Окно времени снизу вверх">▶ время</button><button class="reset" id="rreset" title="Весь период (снять выбор диапазона)">⟲ всё</button></div>
+<div id="panel">
+  <div class="top"><b>ВЕТВИ</b><button id="all" title="Показать всё (0)">всё</button><button id="hideOthers" title="Остальные: приглушить или скрыть">приглушать</button><button id="pmin" title="Свернуть">—</button></div>
+  <div class="body"><input type="search" id="find" placeholder="найти тему или ветку"><div id="phint">щелчок по названию — выбрать (Ctrl — добавить), ▸ — ветки темы, ◉ — скрыть; на дереве: Ctrl+щелчок по листу — его ветка, Alt+щелчок — его тема</div><div id="list"></div></div>
+</div>
+<div id="bar">
+  <button id="vTree" class="on">Дерево</button><button id="vBush" title="Ветви растут от корня, без ствола">Куст</button><button id="vCyl">Цилиндр</button>
+  <span class="sep"></span>
+  <button id="cTheme" class="on">по темам</button><button id="cAge">по возрасту</button><button id="cChan">по каналам</button>
+  <span class="sep"></span>
+  <button id="wood" class="on" title="Показать/скрыть ветви (линии)">ветви</button><button id="wind" class="on">ветер</button><button id="shadow" class="on">тень-карта</button><button id="setBtn" title="Яркость и размер">вид…</button><button id="home" title="H">домой</button>
+</div>
+<div id="set"><span class="x" id="setX" title="Закрыть">×</span><div class="st">ВИД</div>
+  <label>листья — яркость <input type="range" id="sBright" min="0.2" max="3" step="0.1" value="1"><output id="oBright">1</output></label>
+  <label>листья — размер <input type="range" id="sSize" min="0.4" max="3" step="0.1" value="1"><output id="oSize">1</output></label>
+  <label>ветви — заметность <input type="range" id="sWood" min="0" max="1" step="0.05" value="1"><output id="oWood">1</output></label>
+  <label>светлячки и лиана — размер <input type="range" id="sFire" min="0.4" max="3" step="0.1" value="1"><output id="oFire">1</output></label>
+  <label title="Узел лианы — главный ролик периода">лиана — период узлов <input type="range" id="sVine" min="0" max="4" step="1" value="2"><output id="oVine">3 мес.</output></label>
+  <label>тень-карта — яркость <input type="range" id="sShadow" min="0" max="3" step="0.1" value="1"><output id="oShadow">1</output></label>
+  <label>перспектива <input type="range" id="sPersp" min="0" max="1" step="0.02" value="0.43"><output id="oPersp">42°</output></label>
+  <label>туман <input type="range" id="sFog" min="0" max="1" step="0.02" value="0.3"><output id="oFog">0.3</output></label>
+</div>
+<div id="vid"><span class="x" id="vx" title="Закрыть (Esc)">×</span>
+  <div id="vhd"></div><div class="vt" id="vtitle"></div>
+  <iframe id="yt" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+  <div class="nav"><button id="pPrev" title="Shift+←">‹ откуда</button><span class="pinfo" id="pinfo"></span><button id="pNext" title="Shift+→">куда ›</button></div>
+  <div class="nav"><span class="t-d">дорожка:</span><button data-w="1">±1</button><button data-w="5" class="on">±5</button><button data-w="15">±15</button><button id="follow" class="on" title="Камера следует за разговором">следовать</button></div>
+</div>
+<div id="help" title="Щелчок — описание и помощь"><b>? помощь</b><span class="hd"> · левая — вращать, Shift+левая — сдвиг, колесо — ближе (сквозь крону), Shift / Ctrl+колесо — вверх-вниз / вбок; ↑/↓ — время; двойной щелчок по листу — ролик; правая кнопка — меню (звезда, ссылка на лист); 1–9 — тема, 0 — всё; ролик: ←/→ ±15 с, Shift+←/→ — фрагмент; Esc — закрыть, Esc Esc — сброс.</span></div>
+<div id="about"><div class="card">
+  <h2>ДРЕВО ЛЮБАРСКОГО</h2>
+  <div>Все разговоры двух каналов Любарского — 186 тысяч фрагментов из 1 220 роликов (май 2022 — сентябрь 2026) — в виде дерева.</div>
+  <h3>Как устроено</h3>
+  <ul><li><b>Высота — время</b>: снизу 2022 год, наверху — сегодня. Годы — на линейке слева и кольцами вокруг кроны.</li>
+  <li><b>Ветви — темы</b> (9, свои цвета), <b>ветки</b> — их части (161), <b>листья — фрагменты</b> разговоров.</li>
+  <li>Ранние разговоры вьются вокруг ствола; ветвь отходит, когда тема набирает силу.</li>
+  <li>Тень кроны на земле — карта «Вселенной»: где какая тема лежит.</li>
+  <li>Виды: <b>Дерево</b>, <b>Куст</b> (всё растёт от корня), <b>Цилиндр</b> (каждый лист — на своём месте карты; столбы толще там, где о теме говорили больше).</li></ul>
+  <h3>Что можно делать</h3>
+  <ul><li><b>Поиск</b> (слева вверху): найденное светится светлячками, золотая <b>лиана</b> ведёт сюжет по времени: узел — главный ролик периода, лиана толще и ярче там, где находок больше, период (1, 2, 3, 6 или 12 месяцев) — в «вид…». «▶ сюжет» облетает её узлы, «×» справа от «найти» — сбросить поиск. Пишите начало слова без окончания — найдётся больше.</li>
+  <li><b>Enter</b> в поле поиска: одно слово — поиск по ключевым словам на дереве («найти»), несколько слов — «ответы».</li>
+  <li><b>Ответы</b> (кнопка рядом с «найти»): спросить «Поиск Любарского» — 10 лучших ответов на запрос отмечаются на дереве голубыми номерами (номер — место в выдаче) и метками на линейке; щелчок по номеру — смотреть, «×» — снять.</li>
+  <li><b>Связь с сайтом</b>: значки 🔍 и 🌌 рядом с названием — «Поиск Любарского» и «Вселенная Любарского»; правая кнопка по листу → «Звезда во Вселенной» — этот фрагмент на карте.</li>
+  <li><b>Ссылка на лист</b>: правая кнопка по листу → «🔗 Ссылка на лист» — адрес вида <i>momendex.quest/tree.html#chunk=…</i>; по нему «Древо» подлетит к листу и отметит его красным кольцом с карточкой (▶ смотреть, 🌌 звезда, 🔗 ссылка); с <i>&amp;play=1</i> — сразу ролик. Пока смотрите ролик, адресная строка показывает текущий фрагмент. Из «Поиска» и «Вселенной» — «🌳 на дереве».</li>
+  <li><b>Ролик</b>: <b>двойной щелчок</b> по листу — плеер внизу слева, дата ролика — белая метка на линейке. На время ролика дерево становится «Цилиндром» и гаснет, названия тем — неярко в плоскости ролика, у своих столбов; на мышь отвечают только листья ролика и кольцо. <b>Кольцо — часы ролика</b>: 12 засечек с минутами, «0» — начало; дуги — темы по ходу речи, огонёк — «сейчас»; наведение на кольцо отмечает лист этого места, щелчок — переход к нему. Текущий лист мигает; стрелки — откуда и куда идёт разговор, чем ближе к текущему — тем толще и ярче. После закрытия вид — прежний.</li>
+  <li><b>Темы и ветки</b>: панель «Ветви» справа, правая кнопка на дереве, Ctrl+щелчок по листу — его ветка (её название появляется рядом), Alt+щелчок — тема, клавиши 1–9; двойной щелчок по ветви — подлёт.</li>
+  <li><b>Время</b>: протяните мышью по линейке слева — светится только этот период, и на мышь отвечают только его листья; «▶ время» — окно идёт снизу вверх; «⟲ всё» — весь период. При выборе тем и веток линейка показывает их частоту по месяцам.</li>
+  <li><b>Вид…</b> (внизу): яркость и размер листьев, ветви, светлячки и лиана, тень, перспектива, туман, период лианы; «×» — закрыть.</li></ul>
+  <h3>Управление</h3>
+  <ul><li>Левая кнопка — вращать, колесо — ближе/дальше (можно пролететь сквозь крону), <b>Shift+колесо</b> — сдвиг вверх-вниз, <b>Ctrl+колесо</b> — вбок, Shift+левая — сдвиг, ↑/↓ — вверх-вниз по времени, H — домой.</li>
+  <li>Одиночный щелчок дерево не двигает; <b>двойной</b> — открыть ролик или подлететь к ветви.</li>
+  <li>Esc — закрыть ролик / снять поиск / снять выбор; <b>Esc Esc</b> (дважды подряд) — полный сброс и «домой», вид «Дерево».</li></ul>
+  <div class="close">Щелчок или Esc — начать. Это окно — снова по «? помощь» внизу слева.</div>
+</div></div>
+<div id="cap"></div>
+<div id="aim"></div>
+<div id="pinring"></div>
+<div id="pin"></div>
+<div id="toast"></div>
+<div id="tip"></div>
+<div id="menu"></div>
+<script type="module" src="./tree/tree.js?b=21"></script>
+</body>
+</html>
